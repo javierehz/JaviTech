@@ -1,5 +1,6 @@
 package com.javieh.javitech.service;
 
+import com.javieh.javitech.dto.CartDTO;
 import com.javieh.javitech.dto.CartItemDTO;
 import com.javieh.javitech.dto.CartItemRequestDTO;
 import com.javieh.javitech.entity.Cart;
@@ -11,6 +12,10 @@ import com.javieh.javitech.repository.CartRepository;
 import com.javieh.javitech.repository.ProductRepository;
 import com.javieh.javitech.repository.UserRepository;
 import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class CartService {
@@ -29,6 +34,26 @@ public class CartService {
         this.userRepository = userRepository;
         this.cartItemRepository = cartItemRepository;
         this.cartRepository = cartRepository;
+    }
+
+    public CartDTO getCartByUserId(Long userId){
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        List<CartItem> items = cartItemRepository.findByCartId(cart.getId());
+        List<CartItemDTO> itemsDTO = items.stream()
+                .map(item -> new CartItemDTO(
+                        item.getId(),
+                        item.getProduct().getId(),
+                        item.getProduct().getName(),
+                        item.getProduct().getPrice(),
+                        item.getQuantity()
+                ))
+                .collect(Collectors.toList());
+        BigDecimal total = itemsDTO.stream()
+                .map(dto -> dto.getUnitPrice().multiply(BigDecimal.valueOf(dto.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new CartDTO(cart.getId(), itemsDTO, total);
     }
 
     public CartItemDTO addProductToCart(Long userId, CartItemRequestDTO request){
